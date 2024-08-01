@@ -7,6 +7,9 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 
+def homePage(request):
+    return HttpResponse("<h1>Hello this is Serializer App.</h1><br><h2>All Snippets: '/snippets/'</h2><br><h2>Single Snippet: '/snippets/id/'</h2>")
+
 @api_view(['GET', 'POST'])
 def snippet_list(request, format=None):
     """
@@ -18,6 +21,14 @@ def snippet_list(request, format=None):
         return Response(serializer.data)
 
     elif request.method == 'POST':
+
+        # Test the print
+        snippet = Snippet.objects.get(pk=4)
+        print("This is get Data", SnippetSerializer(snippet).data)
+        requestData = request.data
+        print(requestData)
+        # Test Ended
+
         serializer = SnippetSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
