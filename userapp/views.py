@@ -6,8 +6,42 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
 from django.http import Http404
+from rest_framework.authtoken.models import Token
 
 # Class Based Django Views
+class UserRegistration(APIView):
+    def post(self, request):
+        name = request.data['name']
+        email = request.data['email']
+        phone = request.data['phone']
+        password = request.data['password']
+
+
+        userList = Users.objects.all()
+        exist =  any(item.email == email for item in userList)
+        if exist: 
+            return Response({"Exist": "This email is already exist"})
+
+        userSerializer = UserSerializer()
+        userSerializer.validate(request.data)
+
+
+        get_data = Users.objects.create(
+            name = name, email = email, phone = phone, password = password,
+        )
+        serializer = UserSerializer(get_data, many = False)
+        print("Response Data: ", serializer.data)
+        if serializer.data:
+            user = Users.objects.get(id = serializer.data["id"])
+
+            # print("User", user)
+            # print("User", str(user))
+
+            token_obj , _ = Token.objects.get_or_create(user = serializer)
+            return Response(serializer.data, status = status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+       
+    
 class UserList(APIView):
     def get(self, request):
         if request.method == "GET":
@@ -28,21 +62,6 @@ class UserList(APIView):
                 return Response(userData, status= status.HTTP_200_OK)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-    def post(self, request):
-        name = request.data['name']
-        email = request.data['email']
-        phone = request.data['phone']
-        password = request.data['password']
-
-
-        get_data = Users.objects.create(
-            name = name, email = email, phone = phone, password = password,
-        )
-        serializer = UserSerializer(get_data, many = False)
-        if serializer.data:
-            return Response(serializer.data, status = status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 class UserDetails(APIView):
     def get_data(self, pk):

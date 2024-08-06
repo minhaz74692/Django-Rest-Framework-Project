@@ -8,5 +8,8 @@ class Users(models.Model):
     phone = models.CharField(max_length=11)
     password = models.CharField(max_length=30)
 
+    # def __str__(self):
+    #     return {'name': self.name, "email":self.email}
+    
     class Meta: 
         ordering = ["created"]
