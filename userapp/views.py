@@ -1,48 +1,128 @@
 from django.shortcuts import render
 from rest_framework.decorators import api_view
 from userapp.models import Users
-from userapp.serializers import UserSerializer
+from userapp.serializers import UserSerializer, CustomUserSerializer
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
 from django.http import Http404
-from rest_framework.authtoken.models import Token
+import jwt
+import datetime
+from rest_framework.permissions import AllowAny
+from django.conf import settings
 
+from rest_framework_simplejwt.tokens import RefreshToken
+
+
+from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.authentication import JWTAuthentication
+
+
+
+class Home(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        content = {'message': 'Hello, World!'}
+        return Response(content)
+    
 # Class Based Django Views
 class UserRegistration(APIView):
+    permission_classes = [AllowAny]
     def post(self, request):
-        name = request.data['name']
-        email = request.data['email']
-        phone = request.data['phone']
-        password = request.data['password']
+        # Validate and save to the Django User model
+        user_serializer = UserSerializer(data=request.data)
+        
+        if user_serializer.is_valid():
+            user = user_serializer.save()
+
+            # Validate and save to the custom Users model
+            custom_data = {
+                'username': request.data['username'],
+                'email': request.data['email'],
+                'phone':request.data["phone"],
+                
+            }
+            
+            custom_user_serializer = CustomUserSerializer(data=custom_data)
+
+            if custom_user_serializer.is_valid():
+                custom_user_serializer.save()
+                 # Generate token for the newly created user
+                refresh = RefreshToken.for_user(user)
+                access_token = str(refresh.access_token)
+
+                print("This is your access token:", access_token),
+
+                # Return the combined data if necessary
+                return Response({
+                    "access_token":access_token,
+                    "auth_user": user_serializer.data,
+                    "custom_user": custom_user_serializer.data,
+                }, status=status.HTTP_201_CREATED)
+            
+            # If custom user data is invalid, delete the created auth user
+            user.delete()
+            return Response(custom_user_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        return Response(user_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-        userList = Users.objects.all()
-        exist =  any(item.email == email for item in userList)
-        if exist: 
-            return Response({"Exist": "This email is already exist"})
 
-        userSerializer = UserSerializer()
-        userSerializer.validate(request.data)
+        # serializer = UserSerializer(data=request.data)
+        # Ensure the data is valid
+        # serializer.validate(request.data)
+        # if serializer.is_valid():
+        #     # Save the user
+        #     serializer.save()
+        #     return Response({"message": "User registered successfully"}, status=status.HTTP_201_CREATED)
+        # else:
+        #     # If data is not valid, return the errors
+        #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        # username = request.data['username']
+        # email = request.data['email']
+        # phone = request.data['phone']
+        # password = request.data['password']
 
 
-        get_data = Users.objects.create(
-            name = name, email = email, phone = phone, password = password,
-        )
-        serializer = UserSerializer(get_data, many = False)
-        print("Response Data: ", serializer.data)
-        if serializer.data:
-            user = Users.objects.get(id = serializer.data["id"])
+        # userList = Users.objects.all()
+        # exist =  any(item.email == email for item in userList)
+        # if exist: 
+        #     return Response({"Exist": "This email is already exist"})
 
-            # print("User", user)
-            # print("User", str(user))
+        # userSerializer = UserSerializer(data = request.data)
+        # userSerializer.validate(request.data)
 
-            token_obj , _ = Token.objects.get_or_create(user = serializer)
-            return Response(serializer.data, status = status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-       
+
+        # get_data = Users.objects.create(
+        #     username = username, email = email, phone = phone, password = password,
+        # )
+        # serializer = UserSerializer(data = get_data, many = False)
+        # print("Response Data: ", serializer.data)
+        
+        # if serializer.data:
+        #     if userSerializer.is_valid():
+        #         userSerializer.save()
+        #     user = Users.objects.get(id = serializer.data["id"])
+        #     return Response(serializer.data, status = status.HTTP_201_CREATED)
+        # return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def generate_token(self, user):
+        payload = {
+            'id': user.id,
+            'email': user.email,
+            'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=1),  # Token expiration time
+            'iat': datetime.datetime.now(datetime.UTC),  # Token issue time
+        }
+        token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
+        return token
+    
+
     
 class UserList(APIView):
+
+    permission_classes = [AllowAny]
     def get(self, request):
         if request.method == "GET":
             users = Users.objects.all().order_by('id') #use '-id' for descending order return
@@ -52,10 +132,9 @@ class UserList(APIView):
                 for user in users:
                     emptyMap = {}
                     emptyMap['id'] = user.id
-                    emptyMap['name'] = user.name
+                    emptyMap['username'] = user.username
                     emptyMap['email'] = user.email
                     emptyMap['phone'] = user.phone
-                    emptyMap['password'] = user.password
                     userData.append(emptyMap)
 
                 serializer = UserSerializer(users, many = True)
@@ -79,8 +158,8 @@ class UserDetails(APIView):
         user = self.get_data(pk)
         if request.data:
             try:
-                if 'name' in request.data and 'phone' in request.data:
-                    user.name = request.data['name']
+                if 'username' in request.data and 'phone' in request.data:
+                    user.username = request.data['username']
                     user.phone = request.data['phone']
                     user.save()
 
