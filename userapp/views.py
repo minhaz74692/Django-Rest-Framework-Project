@@ -42,7 +42,6 @@ class UserRegistration(APIView):
                 'username': request.data['username'],
                 'email': request.data['email'],
                 'phone':request.data["phone"],
-                
             }
             
             custom_user_serializer = CustomUserSerializer(data=custom_data)
@@ -108,20 +107,11 @@ class UserRegistration(APIView):
         #     return Response(serializer.data, status = status.HTTP_201_CREATED)
         # return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-    def generate_token(self, user):
-        payload = {
-            'id': user.id,
-            'email': user.email,
-            'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=1),  # Token expiration time
-            'iat': datetime.datetime.now(datetime.UTC),  # Token issue time
-        }
-        token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
-        return token
-    
 
     
 class UserList(APIView):
 
+    # authentication_classes = [JWTAuthentication]
     permission_classes = [AllowAny]
     def get(self, request):
         if request.method == "GET":
@@ -143,6 +133,8 @@ class UserList(APIView):
     
 
 class UserDetails(APIView):
+    # authentication_classes = [JWTAuthentication]
+    permission_classes = [AllowAny]
     def get_data(self, pk):
         try:
            return Users.objects.get(id=pk)
@@ -151,8 +143,12 @@ class UserDetails(APIView):
         
 
     def get(self, request, pk ):
-        serializer = UserSerializer(self.get_data(pk))
-        return Response(serializer.data)
+        response_data = self.get_data(pk)
+        serializer = UserSerializer(response_data)
+
+        returnData = serializer.data
+        returnData["phone"] = response_data.phone
+        return Response(returnData)
 
     def put(self, request, pk):
         user = self.get_data(pk)
