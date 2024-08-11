@@ -112,7 +112,7 @@ class UserRegistration(APIView):
 class UserList(APIView):
 
     # authentication_classes = [JWTAuthentication]
-    permission_classes = [AllowAny]
+    # permission_classes = [AllowAny]
     def get(self, request):
         if request.method == "GET":
             users = Users.objects.all().order_by('id') #use '-id' for descending order return
@@ -134,7 +134,7 @@ class UserList(APIView):
 
 class UserDetails(APIView):
     # authentication_classes = [JWTAuthentication]
-    permission_classes = [AllowAny]
+    # permission_classes = [AllowAny]
     def get_data(self, pk):
         try:
            return Users.objects.get(id=pk)
