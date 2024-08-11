@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from rest_framework.decorators import api_view
 from userapp.models import Users
-from userapp.serializers import UserSerializer, CustomUserSerializer
+from userapp.serializers import UserSerializer, CustomUserSerializer, LoginSerializer
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
@@ -108,6 +108,19 @@ class UserRegistration(APIView):
         # return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 
+class LoginView(APIView):
+
+    permission_classes = [AllowAny]
+    def post(self, request, *args, **kwargs):
+        serializer = LoginSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.validated_data['user']
+            refresh = RefreshToken.for_user(user)
+            access_token = str(refresh.access_token)
+
+            print("This is your access token:", access_token),
+            return Response({"message": "Succesfully Loged In", "token": access_token}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 class UserList(APIView):
 
